@@ -45,7 +45,7 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(1000000);
   Serial.println("SPI Starting");
-  //   SPI.enableInterrupt(&spi_isr4);
+  SPI.enableInterrupt(&spi_isr4);
   
   digitalWriteFast(PIN_LDAC,LOW);
   digitalWriteFast(PIN_MUX_EN0,LOW);
@@ -54,20 +54,21 @@ void setup() {
   digitalWriteFast(PIN_MUX_A1,LOW);
   digitalWriteFast(PIN_MUX_A2,LOW);
   SPI.begin();  
-  txBuffer[0] = 0b000000010000000000000000;
-  SPI.send24((void *)txBuffer, 1, PIN_SYNC); 
 }
 
 uint16_t out = 0;
 uint8_t currentCV = 0;
 
-// TODO: 
 void spi_isr4(void) {
   // Check transfer complete interrupt
   if(SPI.hasInterruptFlagSet(LPSPI_SR_TCF)) {
+    
     // clear interrupt
     SPI.clearInterruptFlag(LPSPI_SR_TCF);
 
+    digitalWriteFast(PIN_LDAC, HIGH);  
+    digitalWriteFast(PIN_LDAC, LOW);  
+    /*
     // TODO: Do not do this in ISR, use timer.
     // Move to next output and load from DAC.
     if(currentCV < 8) {
@@ -94,25 +95,22 @@ void spi_isr4(void) {
     } else {
       digitalWriteFast(PIN_MUX_EN1, ENABLED);
     } 
+    */
   }  
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  /*if(out == 0) {
-    out = 0xFFFF;
-  } else {
-    out = 0;
-  }*/
   out +=256;
   for(uint8_t i = 0; i < 4; i++) {
     txBuffer[i] = out | (i << 17);
     if(i == 3) {
+      // TODO: Uncomment for SW LDAC after last dac has been updated
+      
       // Update all dacs after all four have been written.
       // Should probably do this in the interrupt routine 
       // AFTER turning off MUX. This can be done with 
       // the hardware LDAC pin by bringing it high.
-      txBuffer[i] = txBuffer[i] | (UPDATE_DACS << 16);
+      //txBuffer[i] = txBuffer[i] | (UPDATE_DACS << 16);
     }
   }
   updateDacChannels();
